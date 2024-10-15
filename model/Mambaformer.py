@@ -75,15 +75,12 @@ class CrossMambaformer(nn.Module):
         self.Mamba_video2 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
         
         self.text_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        # self.text_sublayer = CrossSublayerLogic(model_dimension, dropout_probability)
         self.text_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
                                          dropout_probability=dropout_probability, log_attention_weights=False)
         self.video_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        # self.video_sublayer = CrossSublayerLogic(model_dimension, dropout_probability)
         self.video_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
                                          dropout_probability=dropout_probability, log_attention_weights=False)
         self.audio_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        # self.audio_sublayer = CrossSublayerLogic(model_dimension, dropout_probability)
         self.audio_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
                                          dropout_probability=dropout_probability, log_attention_weights=False)
         
@@ -110,38 +107,32 @@ class CrossMambaformer(nn.Module):
         self.text_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
         self.video_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
         self.audio_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
-        # self.text_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
-        # self.video_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
-        # self.audio_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
         self.init_params()
         self.norm = nn.LayerNorm(model_dimension)
 
     def init_params(self, default_initialization=False):
         if not default_initialization:
-            # model.named_parameters 每一次迭代元素的名字和param。
+            # model.named_parameters 
             for name, p in self.named_parameters():
                 if p.dim() > 1:
-                    # 初始化均匀分布的网络参数
                     nn.init.xavier_uniform_(p)
 
     def forward(self, text_input, video_input,audio_input):
-        # 每层Mamba最后 残差＋norm
+        # Mamba
         text_input = self.Mamba_text1(text_input)
         video_input = self.Mamba_video1(video_input)
         audio_input = self.Mamba_audio1(audio_input)
-        # 自注意力
+        # self_attention
         text_self_attention1 = lambda srb1, srb2: self.text_self_mha1(query=srb1, key=srb2, value=srb2)
         video_self_attention1= lambda srb1, srb2: self.video_self_mha1(query=srb1, key=srb2, value=srb2)
         audio_self_attention1 = lambda srb1, srb2: self.audio_self_mha1(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
         text_representations_batch = self.norm(self.text_sublayer_1(text_input, text_input, text_self_attention1))
         video_representations_batch = self.norm(self.video_sublayer_1(video_input, video_input, video_self_attention1))
         audio_representations_batch = self.norm(self.audio_sublayer_1(audio_input, audio_input, audio_self_attention1))
-        # 跨模态多头注意 Q input1 K,V input2
+        # cross_attention
         text_cross_attention = lambda srb1, srb2: self.text_mha(query=srb1, key=srb2, value=srb2)
         video_cross_attention = lambda srb1, srb2: self.video_mha(query=srb1, key=srb2, value=srb2)
         audio_cross_attention = lambda srb1, srb2: self.audio_mha(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
         text_representations_batch = self.norm(self.text_sublayer(text_representations_batch, video_representations_batch, text_cross_attention))
         video_representations_batch = self.norm(self.video_sublayer(video_representations_batch, text_representations_batch, video_cross_attention))
         audio_representations_batch = self.norm(self.audio_sublayer(audio_representations_batch, text_representations_batch, audio_cross_attention))
@@ -149,11 +140,10 @@ class CrossMambaformer(nn.Module):
         text_representations_batch = self.Mamba_text2(text_representations_batch)
         video_representations_batch = self.Mamba_video2(video_representations_batch)
         audio_representations_batch = self.Mamba_audio2(audio_representations_batch)
-        # 自注意力
+        # self_attention
         text_self_attention2 = lambda srb1, srb2: self.text_self_mha2(query=srb1, key=srb2, value=srb2)
         video_self_attention2 = lambda srb1, srb2: self.video_self_mha2(query=srb1, key=srb2, value=srb2)
         audio_self_attention2 = lambda srb1, srb2: self.audio_self_mha2(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
         text_representations_batch = self.norm(self.text_sublayer_2(text_representations_batch, text_representations_batch, text_self_attention2))
         video_representations_batch = self.norm(self.video_sublayer_2(video_representations_batch, video_representations_batch, video_self_attention2))
         audio_representations_batch = self.norm(self.audio_sublayer_2(audio_representations_batch, audio_representations_batch, audio_self_attention2))
@@ -163,102 +153,6 @@ class CrossMambaformer(nn.Module):
         audio_representations_batch = self.audio_ffn_layer(audio_representations_batch)
         return text_representations_batch,video_representations_batch,audio_representations_batch
 
-
-class CrossMambaformer_womodal(nn.Module):
-    def __init__(self, model_dimension, number_of_heads, dropout_probability,d_state=16,d_conv=4):
-        super().__init__()
-        self.Mamba_text1 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-        # self.Mamba_audio1 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-        self.Mamba_video1 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-        self.Mamba_text2 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-        # self.Mamba_audio2 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-        self.Mamba_video2 = Mamba_Layer(Mamba(model_dimension, d_state=d_state, d_conv=d_conv), model_dimension)
-
-        self.text_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        self.text_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        self.video_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        self.video_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        # self.audio_sublayer = SublayerLogic(model_dimension, dropout_probability)
-        # self.audio_mha = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-        #                                  dropout_probability=dropout_probability, log_attention_weights=False)
-
-        self.text_sublayer_1 = SublayerLogic(model_dimension, dropout_probability)
-        self.text_self_mha1 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        self.video_sublayer_1 = SublayerLogic(model_dimension, dropout_probability)
-        self.video_self_mha1 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        # self.audio_sublayer_1 = SublayerLogic(model_dimension, dropout_probability)
-        # self.audio_self_mha1 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-        #                                  dropout_probability=dropout_probability, log_attention_weights=False)
-
-        self.text_sublayer_2 = SublayerLogic(model_dimension, dropout_probability)
-        self.text_self_mha2 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        self.video_sublayer_2 = SublayerLogic(model_dimension, dropout_probability)
-        self.video_self_mha2 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-                                         dropout_probability=dropout_probability, log_attention_weights=False)
-        # self.audio_sublayer_2 = SublayerLogic(model_dimension, dropout_probability)
-        # self.audio_self_mha2 = MultiHeadedAttention(model_dimension=model_dimension, number_of_heads=number_of_heads,
-        #                                  dropout_probability=dropout_probability, log_attention_weights=False)
-
-        self.text_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
-        self.video_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
-        # self.audio_ffn_layer = PoswiseFeedForwardNet(model_dimension, model_dimension * 2)
-        # self.text_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
-        # self.video_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
-        # self.audio_ffn_layer = FeedForward(model_dimension, model_dimension * 2)
-        self.init_params()
-        self.norm = nn.LayerNorm(model_dimension)
-
-    def init_params(self, default_initialization=False):
-        if not default_initialization:
-            # model.named_parameters 每一次迭代元素的名字和param。
-            for name, p in self.named_parameters():
-                if p.dim() > 1:
-                    # 初始化均匀分布的网络参数
-                    nn.init.xavier_uniform_(p)
-
-    def forward(self, text_input, video_input):
-        # 每层Mamba最后 残差＋norm
-        text_input = self.Mamba_text1(text_input)
-        video_input = self.Mamba_video1(video_input)
-        # audio_input = self.Mamba_audio1(audio_input)
-        # 自注意力
-        text_self_attention1 = lambda srb1, srb2: self.text_self_mha1(query=srb1, key=srb2, value=srb2)
-        video_self_attention1= lambda srb1, srb2: self.video_self_mha1(query=srb1, key=srb2, value=srb2)
-        # audio_self_attention1 = lambda srb1, srb2: self.audio_self_mha1(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
-        text_representations_batch = self.norm(self.text_sublayer_1(text_input, text_input, text_self_attention1))
-        video_representations_batch = self.norm(self.video_sublayer_1(video_input, video_input, video_self_attention1))
-        # audio_representations_batch = self.norm(self.audio_sublayer_1(audio_input, audio_input, audio_self_attention1))
-        # 跨模态多头注意 Q input1 K,V input2
-        text_cross_attention = lambda srb1, srb2: self.text_mha(query=srb1, key=srb2, value=srb2)
-        video_cross_attention = lambda srb1, srb2: self.video_mha(query=srb1, key=srb2, value=srb2)
-        # audio_cross_attention = lambda srb1, srb2: self.audio_mha(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
-        text_representations_batch = self.norm(self.text_sublayer(text_representations_batch, video_representations_batch, text_cross_attention))
-        video_representations_batch = self.norm(self.video_sublayer(video_representations_batch, text_representations_batch, video_cross_attention))
-        # audio_representations_batch = self.norm(self.audio_sublayer(audio_representations_batch, text_representations_batch, audio_cross_attention))
-        # Mamba
-        text_representations_batch = self.Mamba_text2(text_representations_batch)
-        video_representations_batch = self.Mamba_video2(video_representations_batch)
-        # audio_representations_batch = self.Mamba_audio2(audio_representations_batch)
-        # 自注意力
-        text_self_attention2 = lambda srb1, srb2: self.text_self_mha2(query=srb1, key=srb2, value=srb2)
-        video_self_attention2 = lambda srb1, srb2: self.video_self_mha2(query=srb1, key=srb2, value=srb2)
-        # audio_self_attention2 = lambda srb1, srb2: self.audio_self_mha2(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
-        text_representations_batch = self.norm(self.text_sublayer_2(text_representations_batch, text_representations_batch, text_self_attention2))
-        video_representations_batch = self.norm(self.video_sublayer_2(video_representations_batch, video_representations_batch, video_self_attention2))
-        # audio_representations_batch = self.norm(self.audio_sublayer_2(audio_representations_batch, audio_representations_batch, audio_self_attention2))
-        # ffn
-        text_representations_batch = self.text_ffn_layer(text_representations_batch)
-        video_representations_batch = self.video_ffn_layer(video_representations_batch)
-        # audio_representations_batch = self.audio_ffn_layer(audio_representations_batch)
-        return text_representations_batch,video_representations_batch
     
 class Attention_Mamba(nn.Module):
     def __init__(self, model_dimension, number_of_heads, dropout_probability,d_state=16,d_conv=4):
@@ -292,26 +186,23 @@ class Attention_Mamba(nn.Module):
 
     def init_params(self, default_initialization=False):
         if not default_initialization:
-            # model.named_parameters 每一次迭代元素的名字和param。
+            # model.named_parameters 
             for name, p in self.named_parameters():
                 if p.dim() > 1:
-                    # 初始化均匀分布的网络参数
                     nn.init.xavier_uniform_(p)
 
     def forward(self, text_input, video_input,audio_input):
-        # 自注意力
+        # self-attention
         text_self_attention = lambda srb1, srb2: self.text_self_mha(query=srb1, key=srb2, value=srb2)
         video_self_attention = lambda srb1, srb2: self.video_self_mha(query=srb1, key=srb2, value=srb2)
         audio_self_attention = lambda srb1, srb2: self.audio_self_mha(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
         text_representations_batch = self.norm(self.text_sublayer(text_input, text_input, text_self_attention))
         video_representations_batch = self.norm(self.video_sublayer(video_input, video_input, video_self_attention))
         audio_representations_batch = self.norm(self.audio_sublayer(audio_input, audio_input, audio_self_attention))
-        # 跨模态多头注意 Q input1 K,V input2
+        # cross-attention
         text_cross_attention = lambda srb1, srb2: self.text_cross_mha(query=srb1, key=srb2, value=srb2)
         video_cross_attention = lambda srb1, srb2: self.video_cross_mha(query=srb1, key=srb2, value=srb2)
         audio_cross_attention = lambda srb1, srb2: self.audio_cross_mha(query=srb1, key=srb2, value=srb2)
-        # 多头注意后残差＋norm
         text_representations_batch = self.norm(self.text_sublayer_2(text_representations_batch, video_representations_batch, text_cross_attention))
         video_representations_batch = self.norm(self.video_sublayer_2(video_representations_batch, text_representations_batch, video_cross_attention))
         audio_representations_batch = self.norm(self.audio_sublayer_2(audio_representations_batch, text_representations_batch, audio_cross_attention))
@@ -356,7 +247,6 @@ class MultiHeadedAttention(nn.Module):
         self.attention_weights = None  # for visualization purposes, I cache the weights here (translation_script.py)
 
     def attention(self, query, key, value):
-        # 送入softmax前对点积结果进行缩放
         scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dimension)
         attention_weights = self.softmax(scores)
         attention_weights = self.attention_dropout(attention_weights)
@@ -376,7 +266,6 @@ class MultiHeadedAttention(nn.Module):
         reshaped = intermediate_token_representations.transpose(1, 2).reshape(batch_size, -1,
                                                                               self.number_of_heads * self.head_dimension)
         # forward
-        # 合并多头注意力的结果，使用一个用于拼接的线性层
         token_representations = self.out_projection_net(reshaped)
         return token_representations
 
