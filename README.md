@@ -1,7 +1,7 @@
 # BalanceSVFND
-code for paper: ['BalanceSVFND: Exploring the Issue of Modelity Imbalance in Fake News Detection on Short Video Platforms']
+Code for paper: ['BalanceSVFND: Exploring the Issue of Modelity Imbalance in Fake News Detection on Short Video Platforms']
 ## Environment
-please refer to the file requirements.txt.
+Please refer to the file requirements.txt.
 ## Dataset
 We conduct experiments on two datasets: FakeSV and FakeTT. 
 ### FakeSV
