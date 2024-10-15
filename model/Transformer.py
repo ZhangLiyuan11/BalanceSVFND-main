@@ -17,10 +17,9 @@ class Transformer(nn.Module):
 
     def init_params(self, default_initialization=False):
         if not default_initialization:
-            # model.named_parameters 每一次迭代元素的名字和param。
+            # model.named_parameters 
             for name, p in self.named_parameters():
                 if p.dim() > 1:
-                    # 初始化均匀分布的网络参数
                     nn.init.xavier_uniform_(p)
 
     def forward(self, input1, input2):
@@ -52,7 +51,6 @@ class EncoderLayer(nn.Module):
         self.norm = nn.LayerNorm(model_dimension)
 
     def forward(self, srb1, srb2):
-        # 多头注意
         encoder_self_attention1 = lambda srb1, srb2: self.mha1(query=srb1, key=srb2, value=srb2)
         # encoder_self_attention2 = lambda srb1, srb2: self.mha2(query=srb1, key=srb2, value=srb2)
         src_representations_batch = self.norm(self.sublayer1(srb1, srb2, encoder_self_attention1))
@@ -87,23 +85,17 @@ class MultiHeadedAttention(nn.Module):
         self.attention_weights = None  # for visualization purposes, I cache the weights here (translation_script.py)
 
     def attention(self, query, key, value):
-        # query b*8*300*128, key b*8*49*128, value b*8*49*128
-        # 送入softmax前对点积结果进行缩放
         scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dimension)
-        # scores b*8*300*49
         attention_weights = self.softmax(scores)
         attention_weights = self.attention_dropout(attention_weights)
         intermediate_token_representations = torch.matmul(attention_weights, value)
-        # intermediate_token_representations b*8*300*49
 
         return intermediate_token_representations, attention_weights  # attention weights for visualization purposes
 
     def forward(self, query, key, value):
         batch_size = query.shape[0]
-        # query b*300*1024, key b*49*1024, value b*49*1024
         query, key, value = [net(x).view(batch_size, -1, self.number_of_heads, self.head_dimension).transpose(1, 2)
                              for net, x in zip(self.qkv_nets, (query, key, value))]
-        # query b*8*300*128, key b*8*49*128, value b*8*49*128
         intermediate_token_representations, attention_weights = self.attention(query, key, value)
 
         if self.log_attention_weights:
@@ -111,7 +103,6 @@ class MultiHeadedAttention(nn.Module):
         reshaped = intermediate_token_representations.transpose(1, 2).reshape(batch_size, -1,
                                                                               self.number_of_heads * self.head_dimension)
         # forward
-        # 合并多头注意力的结果，使用一个用于拼接的线性层
         token_representations = self.out_projection_net(reshaped)
         return token_representations
 
