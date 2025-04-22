@@ -17,10 +17,5 @@ After placing the data, start training the model:
 ```python
 python main.py
 ```
-## Quick Start
-We provide model [checkpoints](), You can utilize BalanceSVFND to infer the authenticity of the samples from the test set by following code:
-```python
- python checkpoints_test.py 
-```
 
 All of our data is shared through anonymous Google Drive accounts. The original dataset can be applied for [FakeSV](https://github.com/ICTMCG/FakeSV) and [FakeTT](https://github.com/ICTMCG/FakingRecipe?tab=readme-ov-file).
