@@ -2,28 +2,24 @@ from model.Mambaformer import *
 from utils.tools import *
 
 class FusionNet(nn.Module):
-    def __init__(self,trans_dim,fea_dim):
+    def __init__(self,fea_dim,dropout):
         super(FusionNet, self).__init__()
         self.fea_dim = fea_dim
-        self.trans_dim = trans_dim
-        self.linear = nn.Linear(self.trans_dim, self.fea_dim) 
-
-    def forward(self, text_fea, video_fea, audio_fea):
-        fused_fea = torch.mean(torch.stack((text_fea,video_fea,audio_fea),dim=0), dim=0)
-        # linear and relu
-        fea = F.relu(self.linear(fused_fea))
-        return fea
-    
-class MaxPool(nn.Module):
-    def __init__(self):
-        super(MaxPool, self).__init__()
-        self.adaptive_max_pool_layer = nn.AdaptiveMaxPool1d(output_size=1)
+        self.dropout = dropout
+        self.attention_linear = torch.nn.Linear(self.fea_dim, 1)
+        self.classifier = nn.Linear(fea_dim,2)
         
-    def forward(self, fea):
-        pooled_sequence = self.adaptive_max_pool_layer(fea.transpose(1, 2)).transpose(1, 2).squeeze(dim=-2)
-        return pooled_sequence
-
-
+    def forward(self, fused_fea, stage):
+        if stage == 1:
+            final_fea = torch.mean(fused_fea,dim=0)
+            output = self.classifier(final_fea)
+        else:
+            att_weights = F.softmax(self.attention_linear(fused_fea.permute((1, 0, 2))),dim=1) + 1
+            feas = att_weights * fused_fea.permute((1, 0, 2))
+            final_fea = (feas[:, 0, :] + feas[:, 1, :] + feas[:, 2, :]) / 4
+            output = self.classifier(final_fea)
+        return output 
+    
 class BSVFNDModel(torch.nn.Module):
     def __init__(self,fea_dim,dropout,dataset):
         super(BSVFNDModel, self).__init__()
@@ -54,13 +50,13 @@ class BSVFNDModel(torch.nn.Module):
         
         self.linear_text = nn.Sequential(torch.nn.Linear(self.text_dim, self.trans_dim), torch.nn.ReLU(),nn.Dropout(p=self.dropout))
         self.linear_img = nn.Sequential(torch.nn.Linear(self.img_dim, self.trans_dim), torch.nn.ReLU(),nn.Dropout(p=self.dropout))
-        self.linear_hubert = nn.Sequential(torch.nn.Linear(self.hubert_dim, self.trans_dim), torch.nn.ReLU(),
-                                          nn.Dropout(p=self.dropout))
-
-        self.fusion_net = FusionNet(self.trans_dim,self.dim)
-        self.classifier = nn.Linear(fea_dim,2)
-
-    def forward(self, **kwargs):
+        self.linear_hubert = nn.Sequential(torch.nn.Linear(self.hubert_dim, self.trans_dim), torch.nn.ReLU(),nn.Dropout(p=self.dropout))
+        
+        self.trans_linear = nn.Sequential(torch.nn.Linear(self.trans_dim, self.dim), torch.nn.ReLU(),nn.Dropout(p=self.dropout))
+        # self.trans_linear = torch.nn.Linear(self.trans_dim, self.dim)
+        self.fusion_net = FusionNet(self.dim,self.dropout)
+        
+    def forward(self, stage, **kwargs):
         ### Title ###
         title_inputid = kwargs['title_inputid']#(batch,512)
         title_mask=kwargs['title_mask']#(batch,512)
@@ -85,8 +81,9 @@ class BSVFNDModel(torch.nn.Module):
         fea_text = torch.mean(fea_text, -2)
         fea_img = torch.mean(fea_img, -2)
         
-        final_fea = self.fusion_net(fea_text,fea_img,fea_audio)
-
-        output = self.classifier(final_fea)
+        fused_fea = torch.stack((fea_text,fea_img,fea_audio),dim=0)
+        fused_fea = self.trans_linear(fused_fea)
+        
+        output = self.fusion_net(fused_fea,stage)
 
         return output
