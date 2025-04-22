@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import random
@@ -13,11 +12,12 @@ from run import Run
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--dataset', default='fakesv', help='fakett/fakesv')
-parser.add_argument('--epoches', type=int, default=30)
+parser.add_argument('--epoches', type=int, default=10)
+parser.add_argument('--epoches_stage2', type=int, default=10)
 parser.add_argument('--batch_size', type = int, default=16)
 parser.add_argument('--num_workers', type=int, default=0)
 parser.add_argument('--epoch_stop', type=int, default=5) 
-parser.add_argument('--seed', type=int, default=2024)
+parser.add_argument('--seed', type=int, default=2025)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--lr', type=float, default=0.0001)
 
@@ -45,6 +45,7 @@ print (args)
 config = {
         'dataset':args.dataset,
         'epoches': args.epoches,
+        'epoches_stage2': args.epoches_stage2,
         'batch_size': args.batch_size,
         'num_workers': args.num_workers,
         'epoch_stop': args.epoch_stop,
