@@ -1,5 +1,5 @@
 # BalanceSVFND
-Code for paper: ['BalanceSVFND: Exploring the Issue of Modelity Imbalance in Fake News Detection on Short Video Platforms']
+Code for paper: ['BalanceSVFND: Balanced Multimodal Learning for Fake News Detection on Short Video Platforms']
 ## Environment
 Please refer to the file requirements.txt.
 ## Dataset
@@ -11,7 +11,7 @@ FakeTT collect news videos from the TikTok platform, following a similar collect
 ## Data Preprocess
 - For FakeTT dataset, we use [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) to extract OCR.
 - Pretrained bert-wwm can be downloaded [here](https://drive.google.com/file/d/1-2vEZfIFCdM1-vJ3GD6DlSyKT4eVXMKq/view), and the folder is already prepared in the project.
-- To facilitate reproduction, we provide preprocessed features, which you can download from [this link](), Please place these features in the specified location, which can be customized in dataloader.py. 
+- To facilitate reproduction, we provide preprocessed features, which you can download from [this link](https://drive.google.com/file/d/1XKOWxELqsNj9TXBjBPsstgEAPhoeIDM6/view?usp=sharing), Please place these features in the specified location, which can be customized in dataloader.py. 
 ## Train
 After placing the data, start training the model:
 ```python
